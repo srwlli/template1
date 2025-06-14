@@ -12,17 +12,21 @@ export function Header() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
-  // Prevent hydration mismatch
+  // Prevent hydration mismatch with longer delay
   useEffect(() => {
-    setMounted(true)
+    const timer = setTimeout(() => {
+      setMounted(true)
+    }, 100) // Small delay to ensure auth is ready
+    
+    return () => clearTimeout(timer)
   }, [])
 
   // Handle sign out
   const handleSignOut = async () => {
     try {
       await signOut()
-      setIsMenuOpen(false) // Close menu
-      router.push('/') // Redirect to home page
+      setIsMenuOpen(false)
+      router.push('/')
     } catch (error) {
       console.error('Error signing out:', error)
     }
@@ -38,8 +42,8 @@ export function Header() {
     setIsMenuOpen(false)
   }
 
-  // Show loading skeleton until mounted and auth is resolved
-  if (!mounted || loading) {
+  // More conservative loading check
+  if (!mounted) {
     return (
       <header className="bg-white shadow-sm border-b border-gray-200">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,7 +97,7 @@ export function Header() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              {user ? (
+              {!loading && user ? (
                 // Authenticated user navigation
                 <>
                   <Link 
@@ -127,7 +131,7 @@ export function Header() {
                     Sign Out
                   </button>
                 </>
-              ) : (
+              ) : !loading ? (
                 // Unauthenticated user navigation
                 <>
                   <Link 
@@ -149,6 +153,13 @@ export function Header() {
                     Sign Up
                   </Link>
                 </>
+              ) : (
+                // Still loading auth state
+                <div className="flex items-center space-x-8">
+                  <div className="h-4 w-12 bg-gray-200 animate-pulse rounded"></div>
+                  <div className="h-4 w-10 bg-gray-200 animate-pulse rounded"></div>
+                  <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
+                </div>
               )}
             </div>
           </div>
@@ -165,7 +176,7 @@ export function Header() {
         {isMenuOpen && (
           <div className="absolute top-16 left-0 right-0 z-50 md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200 shadow-lg">
-              {user ? (
+              {!loading && user ? (
                 // Authenticated mobile navigation
                 <>
                   <Link
@@ -203,7 +214,7 @@ export function Header() {
                     Sign Out
                   </button>
                 </>
-              ) : (
+              ) : !loading ? (
                 // Unauthenticated mobile navigation
                 <>
                   <Link
@@ -228,6 +239,13 @@ export function Header() {
                     Sign Up
                   </Link>
                 </>
+              ) : (
+                // Loading state for mobile menu
+                <div className="space-y-2">
+                  <div className="h-6 w-20 bg-gray-200 animate-pulse rounded mx-3"></div>
+                  <div className="h-6 w-16 bg-gray-200 animate-pulse rounded mx-3"></div>
+                  <div className="h-6 w-18 bg-gray-200 animate-pulse rounded mx-3"></div>
+                </div>
               )}
             </div>
           </div>
