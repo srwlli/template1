@@ -48,11 +48,6 @@ export const metadata: Metadata = {
     images: ['https://your-domain.com/og-image.png'],
     creator: '@your-twitter',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
   verification: {
     google: 'your-google-site-verification',
     yandex: 'your-yandex-verification',

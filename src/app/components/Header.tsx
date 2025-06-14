@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from './AuthProvider'
@@ -9,7 +9,13 @@ import { useAuth } from './AuthProvider'
 export function Header() {
   const { user, loading, signOut } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -32,29 +38,29 @@ export function Header() {
     setIsMenuOpen(false)
   }
 
-  // Loading skeleton for auth state
-  if (loading) {
+  // Show loading skeleton until mounted and auth is resolved
+  if (!mounted || loading) {
     return (
       <header className="bg-white shadow-sm border-b border-gray-200">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo skeleton */}
-            <div className="flex-shrink-0">
-              <div className="h-8 w-24 bg-gray-200 animate-pulse rounded"></div>
-            </div>
-            
-            {/* Navigation skeleton */}
-            <div className="hidden md:block">
-              <div className="flex items-center space-x-4">
-                <div className="h-4 w-16 bg-gray-200 animate-pulse rounded"></div>
-                <div className="h-4 w-16 bg-gray-200 animate-pulse rounded"></div>
-                <div className="h-4 w-16 bg-gray-200 animate-pulse rounded"></div>
+            {/* Navigation skeleton - LEFT SIDE */}
+            <div className="flex items-center space-x-8">
+              {/* Mobile menu button skeleton */}
+              <div className="md:hidden">
+                <div className="h-6 w-6 bg-gray-200 animate-pulse rounded"></div>
+              </div>
+              {/* Desktop navigation skeleton */}
+              <div className="hidden md:flex items-center space-x-8">
+                <div className="h-4 w-12 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-4 w-10 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-8 w-16 bg-gray-200 animate-pulse rounded"></div>
               </div>
             </div>
             
-            {/* Mobile menu button skeleton */}
-            <div className="md:hidden">
-              <div className="h-6 w-6 bg-gray-200 animate-pulse rounded"></div>
+            {/* Logo skeleton - RIGHT SIDE */}
+            <div className="flex-shrink-0">
+              <div className="h-6 w-20 bg-gray-200 animate-pulse rounded"></div>
             </div>
           </div>
         </nav>
@@ -66,16 +72,27 @@ export function Header() {
     <header className="bg-white shadow-sm border-b border-gray-200">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-xl font-bold text-gray-900 hover:text-blue-600">
-              SaaS App
-            </Link>
-          </div>
+          {/* Navigation - LEFT SIDE */}
+          <div className="flex items-center space-x-8">
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <button
+                onClick={toggleMenu}
+                className="text-gray-700 hover:text-blue-600 focus:outline-none focus:text-blue-600"
+                aria-label="Toggle menu"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {isMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+            </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="flex items-center space-x-8">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-8">
               {user ? (
                 // Authenticated user navigation
                 <>
@@ -136,28 +153,18 @@ export function Header() {
             </div>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={toggleMenu}
-              className="text-gray-700 hover:text-blue-600 focus:outline-none focus:text-blue-600"
-              aria-label="Toggle menu"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+          {/* Logo - RIGHT SIDE */}
+          <div className="flex-shrink-0">
+            <Link href="/" className="text-xl font-bold text-gray-900 hover:text-blue-600">
+              Template
+            </Link>
           </div>
         </div>
 
         {/* Mobile Navigation Menu */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200">
+          <div className="absolute top-16 left-0 right-0 z-50 md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 border-t border-gray-200 shadow-lg">
               {user ? (
                 // Authenticated mobile navigation
                 <>
