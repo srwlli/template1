@@ -4,6 +4,8 @@ import './globals.css'
 import { AuthProvider } from './components/AuthProvider'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
+import { ErrorBoundary } from '../components/ErrorBoundary'
+import { ToastProvider } from '../components/ToastProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -62,19 +64,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <body className="min-h-screen bg-gray-50 flex flex-col">
-        {/* Global Authentication Provider */}
-        <AuthProvider>
-          {/* Site Header */}
-          <Header />
-          
-          {/* Main Content Area */}
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-          
-          {/* Site Footer */}
-          <Footer />
-        </AuthProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            <AuthProvider>
+              <Header />
+              <main className="flex-1 flex flex-col">
+                {children}
+              </main>
+              <Footer />
+            </AuthProvider>
+          </ToastProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )
