@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/app/components/AuthProvider'
-import { useToastHelpers } from '../../components/ToastProvider'
-import { logError, logUserAction } from '../../lib/errorLogger'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 
 interface FormErrors {
   name?: string

@@ -1,15 +1,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ProtectedRoute } from '@/app/components/ProtectedRoute'
-import { useAuth } from '@/app/components/AuthProvider'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 import { supabase } from '@/lib/supabase'
+
+interface FormErrors {
+  name?: string
+  bio?: string
+  location?: string
+  general?: string
+}
 
 export default function ProfilePage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState('')
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+  const { success, error: showError } = useToastHelpers()
   
   // Form state
   const [name, setName] = useState('')
@@ -19,20 +29,67 @@ export default function ProfilePage() {
   // Load user profile data
   useEffect(() => {
     if (user) {
-      // Load data from user metadata
       setName(user.user_metadata?.name || '')
       setBio(user.user_metadata?.bio || '')
       setLocation(user.user_metadata?.location || '')
     }
   }, [user])
 
+  const validateField = (field: string, value: string): string | undefined => {
+    switch (field) {
+      case 'name':
+        if (value.trim() && value.trim().length < 2) return 'Name must be at least 2 characters'
+        if (value.trim().length > 100) return 'Name must be less than 100 characters'
+        return undefined
+      case 'bio':
+        if (value.trim().length > 500) return 'Bio must be less than 500 characters'
+        return undefined
+      case 'location':
+        if (value.trim().length > 100) return 'Location must be less than 100 characters'
+        return undefined
+      default:
+        return undefined
+    }
+  }
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+    
+    const nameError = validateField('name', name)
+    const bioError = validateField('bio', bio)
+    const locationError = validateField('location', location)
+
+    if (nameError) newErrors.name = nameError
+    if (bioError) newErrors.bio = bioError
+    if (locationError) newErrors.location = locationError
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  // Real-time validation
+  useEffect(() => {
+    if (submitAttempted) {
+      validateForm()
+    }
+  }, [name, bio, location, submitAttempted])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitAttempted(true)
+    
+    if (!validateForm()) {
+      logUserAction('Profile validation failed', { errors })
+      showError('Please fix the errors below')
+      return
+    }
+
     setLoading(true)
-    setError('')
-    setSuccess('')
+    setErrors({})
 
     try {
+      logUserAction('Profile update started', { userId: user?.id })
+
       const { error } = await supabase.auth.updateUser({
         data: {
           name: name.trim(),
@@ -42,16 +99,58 @@ export default function ProfilePage() {
       })
 
       if (error) {
-        setError(error.message)
-      } else {
-        setSuccess('Profile updated successfully!')
-        setTimeout(() => setSuccess(''), 3000) // Clear success message after 3 seconds
+        throw error
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+
+      logUserAction('Profile updated successfully', { 
+        userId: user?.id,
+        fieldsUpdated: { name: !!name.trim(), bio: !!bio.trim(), location: !!location.trim() }
+      })
+
+      success('Profile updated!', 'Your changes have been saved successfully.')
+
+    } catch (err: any) {
+      logError(err, {
+        component: 'ProfileForm',
+        action: 'profile_update',
+        additionalData: { userId: user?.id }
+      })
+
+      // Handle specific error cases
+      if (err.message?.includes('rate limit')) {
+        setErrors({ general: 'Too many updates. Please wait a moment before trying again.' })
+        showError('Rate limited', 'Please wait before updating again.')
+      } else if (err.message?.includes('network')) {
+        setErrors({ general: 'Network error. Please check your connection and try again.' })
+        showError('Network error', 'Please check your connection.')
+      } else {
+        const message = err.message || 'An unexpected error occurred. Please try again.'
+        setErrors({ general: message })
+        showError('Update failed', message)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const getFieldErrorClass = (hasError: boolean) => {
+    const baseClass = "block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none sm:text-sm transition-colors"
+    
+    if (hasError) {
+      return `${baseClass} border-red-300 focus:ring-red-500 focus:border-red-500`
+    }
+    
+    return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
+  }
+
+  const getCharacterCount = (text: string, max: number) => {
+    const current = text.length
+    const isOverLimit = current > max
+    return (
+      <p className={`mt-1 text-xs ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
+        {current}/{max} characters {isOverLimit && '(over limit)'}
+      </p>
+    )
   }
 
   return (
@@ -71,7 +170,7 @@ export default function ProfilePage() {
               <p className="mt-1 text-sm text-gray-500">Update your profile details below.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6" noValidate>
               {/* Email Field (Disabled) */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -99,10 +198,17 @@ export default function ProfilePage() {
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className={getFieldErrorClass(!!errors.name)}
                   placeholder="Enter your full name"
                   disabled={loading}
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
                 />
+                {errors.name && (
+                  <p id="name-error" className="mt-1 text-sm text-red-600">
+                    {errors.name}
+                  </p>
+                )}
               </div>
 
               {/* Bio Field */}
@@ -115,13 +221,24 @@ export default function ProfilePage() {
                   rows={4}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className={getFieldErrorClass(!!errors.bio)}
                   placeholder="Tell us a little about yourself..."
                   disabled={loading}
+                  aria-invalid={!!errors.bio}
+                  aria-describedby={errors.bio ? 'bio-error' : 'bio-help'}
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Brief description for your profile. Maximum 500 characters.
-                </p>
+                {errors.bio ? (
+                  <p id="bio-error" className="mt-1 text-sm text-red-600">
+                    {errors.bio}
+                  </p>
+                ) : (
+                  <div id="bio-help">
+                    <p className="mt-1 text-xs text-gray-500">
+                      Brief description for your profile.
+                    </p>
+                    {getCharacterCount(bio, 500)}
+                  </div>
+                )}
               </div>
 
               {/* Location Field */}
@@ -134,23 +251,28 @@ export default function ProfilePage() {
                   id="location"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className={getFieldErrorClass(!!errors.location)}
                   placeholder="City, Country"
                   disabled={loading}
+                  aria-invalid={!!errors.location}
+                  aria-describedby={errors.location ? 'location-error' : undefined}
                 />
+                {errors.location && (
+                  <p id="location-error" className="mt-1 text-sm text-red-600">
+                    {errors.location}
+                  </p>
+                )}
               </div>
 
-              {/* Success Message */}
-              {success && (
-                <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md text-sm">
-                  {success}
-                </div>
-              )}
-
-              {/* Error Message */}
-              {error && (
+              {/* General Error Message */}
+              {errors.general && (
                 <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-                  {error}
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    {errors.general}
+                  </div>
                 </div>
               )}
 
@@ -159,7 +281,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {loading ? (
                     <div className="flex items-center">

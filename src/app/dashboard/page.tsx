@@ -1,7 +1,7 @@
 'use client'
 
-import { ProtectedRoute } from '@/app/components/ProtectedRoute'
-import { useAuth } from '@/app/components/AuthProvider'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuth } from '@/components/AuthProvider'
 
 export default function DashboardPage() {
   return (
