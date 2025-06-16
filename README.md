@@ -4,200 +4,212 @@ A production-ready web application template built with Next.js 14, TypeScript, T
 
 ## ✨ Features
 
-- 🔐 **Secure Authentication** - Complete auth system with Supabase
+- 🔐 **Complete Authentication System** - Supabase-powered auth with protected routes
+- 🛡️ **Dual-Layer Route Protection** - Server-side middleware + client-side components
 - 📱 **Responsive Design** - Mobile-first approach with Tailwind CSS
-- 🛡️ **Route Protection** - Server-side middleware for secure routes
-- 👤 **User Management** - Profile management and settings
-- 📊 **Interactive Dashboard** - Business metrics and activity feeds
-- 🎨 **Modern UI** - Clean, professional interface components
-- ⚡ **Performance Optimized** - Next.js 14 with App Router
-- 🔧 **TypeScript** - Full type safety and developer experience
-- 🚨 **Error Monitoring** - Sentry integration for production reliability
-- 🚀 **Production Ready** - Vercel deployment optimized
+- 👤 **User Management** - Profile, dashboard, and settings pages
+- 🎨 **Modern UI Components** - Header, Footer, Error Boundaries, Toast notifications
+- ⚡ **Performance Optimized** - Next.js 14 with App Router architecture
+- 🔧 **TypeScript** - Full type safety with strict mode
+- 🚨 **Error Monitoring** - Sentry integration + custom error logging
+- 🧪 **Code Quality** - ESLint, TypeScript checking, preflight validation
+- 🚀 **Production Ready** - Optimized for Vercel deployment
+
+## 📋 Prerequisites
+
+- **Node.js 18.17** or later
+- **npm** or **yarn** package manager
+- **Supabase account** (free tier available)
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 1. Clone the Repository
+```bash
+git clone https://github.com/srwlli/template1.git
+cd template1
+```
 
-- Node.js 18.17 or later
-- npm or yarn package manager
-- Supabase account (free tier available)
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-### Installation
+**Current Dependencies:**
+- Next.js: ^14.2.29
+- React: ^18
+- TypeScript: ^5
+- Supabase: @supabase/supabase-js@^2.50.0 + @supabase/ssr@^0.6.1
+- Sentry: @sentry/nextjs@^9.28.1
+- Tailwind CSS: ^3.4.1
+- React Error Boundary: ^6.0.0
 
-1. **Clone or download this template**
-   ```bash
-   # Create new project directory
-   mkdir my-app
-   cd my-app
-   
-   # Initialize Next.js project with template files
-   npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --force
-   ```
+### 3. Environment Configuration
+Create a `.env.local` file in the project root:
 
-2. **Install dependencies**
-   ```bash
-   # Install required packages
-   npm install @supabase/supabase-js @supabase/ssr @sentry/nextjs react-error-boundary
-   npm install -D @types/node
-   
-   # ⚠️ DO NOT install @supabase/auth-helpers-nextjs (deprecated)
-   ```
+```env
+# Supabase Configuration (Required)
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 
-3. **Set up environment variables**
-   ```bash
-   # Create environment file
-   cp .env.local.example .env.local
-   ```
-   
-   Add your Supabase credentials to `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your-project-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   ```
+# Sentry Configuration (Optional - for error monitoring)
+SENTRY_AUTH_TOKEN=your-sentry-auth-token
+NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
+```
 
-4. **Copy template files**
-   - Copy all files from this template to your project
-   - Follow the implementation guide for complete setup
+**Getting Supabase Credentials:**
+1. Create account at [supabase.com](https://supabase.com)
+2. Create new project
+3. Go to Settings → API
+4. Copy Project URL and anon/public key
 
-5. **Start development server**
-   ```bash
-   npm run dev
-   ```
+### 4. Start Development
+```bash
+npm run dev
+```
 
 Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
-## 🛠️ Technology Stack
+**For Mobile Development:**
+```bash
+npm run dev-mobile  # Accessible from other devices on network
+```
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Next.js** | 14.2.29 | React framework with App Router |
-| **React** | 18.x | User interface library |
-| **TypeScript** | 5.x | Static type checking |
-| **Tailwind CSS** | 3.4.1 | Utility-first CSS framework |
-| **Supabase** | 2.50.0 | Authentication & database |
-| **Sentry** | 9.28.1 | Error monitoring & performance |
-| **ESLint** | 8.x | Code linting and formatting |
+## 🛠️ Development Scripts
 
-### Why These Versions?
+| Script | Command | Description |
+|--------|---------|-------------|
+| **Development** | `npm run dev` | Start development server (localhost only) |
+| **Mobile Dev** | `npm run dev-mobile` | Start dev server with network access (0.0.0.0) |
+| **Build** | `npm run build` | Create production build |
+| **Start** | `npm run start` | Start production server |
+| **Lint** | `npm run lint` | Run ESLint code linting |
+| **Type Check** | `npm run type-check` | Run TypeScript type checking |
+| **Preflight** | `npm run preflight` | Run type-check + lint (recommended before commits) |
 
-- **Next.js 14** - Stable, production-tested with React 18
-- **Modern Supabase packages** - Latest SSR support, no deprecated dependencies
-- **TypeScript strict mode** - Enhanced code quality and developer experience
-- **Sentry integration** - Production-grade error monitoring and performance tracking
-
-## 📁 File Structure
+## 📁 Project Structure
 
 ```
-project-root/
+template1/
 ├── src/
-│   ├── app/
-│   │   ├── components/           # Reusable UI components
-│   │   │   ├── AuthProvider.tsx  # Global auth context
-│   │   │   ├── Header.tsx        # Navigation component
-│   │   │   ├── Footer.tsx        # Site footer
-│   │   │   └── ProtectedRoute.tsx # Route protection wrapper
-│   │   ├── (pages)/
-│   │   │   ├── page.tsx          # Landing page
-│   │   │   ├── about/            # About page
-│   │   │   ├── login/            # Authentication pages
-│   │   │   ├── signup/           
-│   │   │   ├── dashboard/        # Protected pages
-│   │   │   ├── profile/          
-│   │   │   └── settings/         
-│   │   ├── layout.tsx            # Root layout with providers
-│   │   └── globals.css           # Global styles
-│   └── lib/
-│       └── supabase.ts           # Supabase client configuration
-├── middleware.ts                 # Route protection middleware
-├── tailwind.config.ts           # Tailwind configuration
-├── tsconfig.json                # TypeScript configuration
-├── next.config.mjs              # Next.js configuration
-├── postcss.config.mjs           # PostCSS configuration
-├── .env.local                   # Environment variables (not tracked)
-├── package.json                 # Dependencies and scripts
-└── README.md                    # This file
+│   ├── app/                     # Next.js App Router
+│   │   ├── about/               # About page
+│   │   ├── dashboard/           # Protected: User dashboard
+│   │   ├── fonts/               # Font assets
+│   │   ├── login/               # Authentication page
+│   │   ├── profile/             # Protected: User profile
+│   │   ├── settings/            # Protected: User settings
+│   │   ├── signup/              # User registration
+│   │   ├── favicon.ico          # Site favicon
+│   │   ├── globals.css          # Global styles + Tailwind
+│   │   ├── layout.tsx           # Root layout with providers
+│   │   └── page.tsx             # Landing page
+│   ├── components/              # Reusable UI components
+│   │   ├── AuthProvider.tsx     # Global authentication context
+│   │   ├── ErrorBoundary.tsx    # React error boundary
+│   │   ├── Footer.tsx           # Site footer
+│   │   ├── Header.tsx           # Navigation header
+│   │   ├── ProtectedRoute.tsx   # Route protection wrapper
+│   │   └── ToastProvider.tsx    # Toast notification system
+│   └── lib/                     # Utility libraries
+│       ├── errorLogger.ts       # Custom error logging
+│       └── supabase.ts          # Supabase client config
+├── middleware.ts                # Route protection middleware
+├── next.config.mjs             # Next.js configuration
+├── tailwind.config.ts          # Tailwind CSS configuration
+├── tsconfig.json               # TypeScript configuration
+├── postcss.config.mjs          # PostCSS configuration
+├── package.json                # Dependencies and scripts
+└── .eslintrc.json              # ESLint configuration
 ```
+
+## 🔐 Authentication System
+
+### Features
+- **Email/Password Authentication** via Supabase
+- **Automatic Session Management** with token refresh
+- **Protected Route Middleware** - Server-side protection
+- **Protected Route Components** - Client-side protection
+- **Automatic Redirects** - Smart routing based on auth state
+
+### Protected Pages
+- `/dashboard` - User dashboard and metrics
+- `/profile` - User profile management
+- `/settings` - User preferences and account settings
+
+### Public Pages
+- `/` - Landing page with hero section
+- `/about` - Feature showcase and tech stack
+- `/login` - User authentication
+- `/signup` - User registration
+
+### Auth Flow
+1. **Unauthenticated users** accessing protected routes → Redirect to `/login`
+2. **Authenticated users** accessing auth pages → Redirect to `/dashboard`
+3. **Session persistence** across browser refreshes
+4. **Loading states** during authentication checks
+
+## 🎨 UI & Styling
+
+### Design System
+- **Tailwind CSS** - Utility-first CSS framework
+- **Inter Font** - Modern typography (loaded from `/fonts`)
+- **Responsive Design** - Mobile-first with breakpoints
+- **Component Architecture** - Modular, reusable components
 
 ### Key Components
-
-- **AuthProvider** - Global authentication state management
-- **ProtectedRoute** - Wrapper for pages requiring authentication
-- **middleware.ts** - Server-side route protection with redirect handling
 - **Header** - Dynamic navigation based on auth state
-- **Error boundaries** - React error handling with Sentry integration
+- **Footer** - Site links and information
+- **AuthProvider** - Global authentication context
+- **ProtectedRoute** - Authentication wrapper for pages
+- **ErrorBoundary** - Error catching and fallback UI
+- **ToastProvider** - User notification system
 
-## 🎨 Customization
+## 🚨 Error Handling & Monitoring
 
-### Branding
+### Error Monitoring Stack
+- **Sentry Integration** - Production error tracking and performance
+- **Custom Error Logger** (`src/lib/errorLogger.ts`) - Enhanced logging
+- **React Error Boundaries** - Component-level error catching
+- **Toast Notifications** - User-friendly error messages
 
-1. **Update app name** throughout the codebase:
+### Error Handling Flow
+1. **Component errors** → Error Boundary → Fallback UI
+2. **Application errors** → Custom Error Logger → Formatted logs
+3. **Production errors** → Sentry → Monitoring dashboard
+4. **User feedback** → Toast notifications → Action guidance
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. **Connect Repository**
+   - Link your GitHub repository to Vercel
+   - Automatic deployments on push to main
+
+2. **Environment Variables**
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your-production-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-production-supabase-key
+   SENTRY_AUTH_TOKEN=your-sentry-token
+   NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
+   ```
+
+3. **Deploy**
    ```bash
-   # Find and replace "Template" with your app name
-   # Key files to update:
-   # - src/app/layout.tsx (metadata)
-   # - src/app/components/Header.tsx (logo)
-   # - src/app/about/page.tsx (content)
+   npm run preflight  # Check code quality
+   npm run build      # Test production build
+   git push origin main  # Deploy via Vercel
    ```
 
-2. **Customize colors** in Tailwind config:
-   ```typescript
-   // tailwind.config.ts
-   const config: Config = {
-     theme: {
-       extend: {
-         colors: {
-           primary: '#your-primary-color',
-           secondary: '#your-secondary-color',
-         }
-       }
-     }
-   }
-   ```
-
-### Functionality
-
-1. **Add new protected routes**:
-   ```typescript
-   // middleware.ts
-   const protectedRoutes = ['/dashboard', '/profile', '/settings', '/your-new-route']
-   ```
-
-2. **Extend user profile fields**:
-   ```typescript
-   // Update user metadata structure in Supabase
-   interface UserMetadata {
-     name?: string
-     bio?: string
-     location?: string
-     avatar_url?: string
-     // Add your custom fields
-   }
-   ```
-
-3. **Add new pages**:
-   ```bash
-   # Create new page directory
-   mkdir src/app/your-page
-   echo "export default function YourPage() { return <div>Your Page</div> }" > src/app/your-page/page.tsx
-   ```
-
-## 🔧 Development
-
-### Available Scripts
-
+### Manual Deployment
 ```bash
-npm run dev          # Start development server
-npm run dev-mobile   # Start dev server with network access (0.0.0.0)
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript type checking
-npm run preflight    # Run type-check and lint (pre-deployment)
+npm run preflight    # Pre-deployment checks
+npm run build       # Create production build
+npm run start       # Start production server
 ```
 
-### Development Workflow
+## 🔧 Development Workflow
 
+### Recommended Workflow
 1. **Make changes** to your code
 2. **Run preflight checks**:
    ```bash
@@ -205,132 +217,122 @@ npm run preflight    # Run type-check and lint (pre-deployment)
    ```
 3. **Test locally**:
    ```bash
-   npm run build
-   npm run start
+   npm run build && npm run start
    ```
-4. **Deploy** to production
-
-### Environment Variables
-
-Create a `.env.local` file in your project root:
-
-```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-
-# Optional: Sentry Configuration (for error monitoring)
-SENTRY_AUTH_TOKEN=your-sentry-auth-token
-NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
-```
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-
-1. **Push to GitHub**:
+4. **Commit and push**:
    ```bash
-   git init
    git add .
-   git commit -m "Initial commit"
+   git commit -m "Your changes"
    git push origin main
    ```
 
-2. **Deploy on Vercel**:
-   - Connect your GitHub repository
-   - Add environment variables in Vercel dashboard
-   - Deploy automatically on push
+### Code Quality
+- **ESLint** - Configured with Next.js best practices
+- **TypeScript** - Strict mode for maximum type safety
+- **Preflight Checks** - Automated quality validation
 
-3. **Environment Variables**:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your-production-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-production-key
-   SENTRY_AUTH_TOKEN=your-sentry-token
-   NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
+## 🛠️ Customization
+
+### Branding
+1. **Update app name** in:
+   - `src/app/layout.tsx` (metadata)
+   - `src/components/Header.tsx` (logo/title)
+   - `package.json` (name field)
+
+2. **Customize colors** in `tailwind.config.ts`:
+   ```typescript
+   module.exports = {
+     theme: {
+       extend: {
+         colors: {
+           primary: '#your-color',
+           secondary: '#your-color',
+         }
+       }
+     }
+   }
    ```
 
-### Other Platforms
-
-- **Netlify** - Works with static export
-- **Railway** - Full-stack deployment
-- **DigitalOcean App Platform** - Container deployment
-
-## 🔒 Security Features
-
-### Authentication Security
-- **Server-side route protection** via Next.js middleware
-- **Client-side route protection** via React components
-- **Automatic session refresh** and token management
-- **Secure cookie handling** with HTTP-only flags
-
-### Database Security
-- **Row Level Security (RLS)** enabled by default
-- **User isolation** - users can only access their own data
-- **SQL injection protection** via Supabase client
-
-### Production Security
-- **Environment variable validation**
-- **HTTPS enforcement** via Vercel
-- **Error monitoring** without exposing sensitive data
+### Adding Features
+1. **New protected routes**: Add to `middleware.ts` protectedRoutes array
+2. **New components**: Create in `src/components/`
+3. **New pages**: Add directories in `src/app/`
+4. **New utilities**: Add to `src/lib/`
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### Authentication Problems
+**Authentication not working:**
 ```bash
-# Symptom: Auth not working, user state not persisting
-# Solution: Check environment variables and Supabase configuration
-
-# Verify .env.local file exists and has correct values
+# Check environment variables
 cat .env.local
 
-# Check Supabase project settings
-# Ensure site URL is configured correctly
+# Verify Supabase configuration
+# Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are correct
 ```
 
-#### Build Errors
+**Build errors:**
 ```bash
-# Symptom: TypeScript errors during build
-# Solution: Run type checking
-
+# Run type checking
 npm run type-check
 
-# Common fixes:
-# - Update import paths
-# - Check for unused variables
-# - Verify all required props are passed
+# Run linting
+npm run lint
+
+# Check for syntax errors
+npm run build
 ```
 
-#### Middleware Issues
+**Route protection not working:**
 ```bash
-# Symptom: Route protection not working
-# Solution: Verify middleware.ts is in root directory
+# Ensure middleware.ts is in project root (not src/)
+ls middleware.ts
 
-ls middleware.ts  # Should exist in project root, not src/
+# Check middleware configuration matches your routes
 ```
 
-#### Package Conflicts
+**Mobile development not accessible:**
 ```bash
-# Symptom: Dependency conflicts or auth helpers errors
-# Solution: Use modern Supabase packages only
+# Use dev-mobile script
+npm run dev-mobile
 
-npm uninstall @supabase/auth-helpers-nextjs  # Remove deprecated package
-npm install @supabase/supabase-js @supabase/ssr  # Use these instead
+# Find your IP address
+ipconfig  # Windows
+ifconfig  # Mac/Linux
+
+# Access via http://YOUR-IP:3000
 ```
 
-### Getting Help
-
-1. **Check browser console** for JavaScript errors
-2. **Verify environment variables** are loaded correctly
-3. **Test authentication flow** step by step
-4. **Check Supabase dashboard** for auth logs
-5. **Review middleware.ts** for route protection issues
-6. **Check Sentry dashboard** for production errors
-
-## 📚 Documentation Links
+## 📚 Documentation
 
 - [Next.js 14 Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs)
+- [Sentry Documentation](https://docs.sentry.io/)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Run preflight checks: `npm run preflight`
+4. Commit changes: `git commit -m 'Add amazing feature'`
+5. Push to branch: `git push origin feature/amazing-feature`
+6. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Next.js](https://nextjs.org) - React framework
+- Authentication by [Supabase](https://supabase.com) - Backend-as-a-Service
+- Styled with [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS
+- Monitored by [Sentry](https://sentry.io) - Error tracking
+- Deployed on [Vercel](https://vercel.com) - Frontend platform
+
+---
+
+**Template** - A modern, production-ready foundation for building secure web applications with authentication, error handling, and best practices built-in.
