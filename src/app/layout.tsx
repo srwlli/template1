@@ -6,6 +6,7 @@ import { Header } from '../components/Header'
 import { Footer } from '../components/Footer'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { ToastProvider } from '../components/ToastProvider'
+import EmailVerificationBanner from '../components/EmailVerificationBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -68,6 +69,7 @@ export default function RootLayout({
           <ToastProvider>
             <AuthProvider>
               <Header />
+              <EmailVerificationBanner />
               <main className="flex-1 flex flex-col">
                 {children}
               </main>

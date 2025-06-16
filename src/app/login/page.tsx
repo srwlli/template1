@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
+  const [showEmailVerificationHelp, setShowEmailVerificationHelp] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
   const { success, error: showError } = useToastHelpers()
@@ -65,6 +66,37 @@ export default function LoginPage() {
       validateForm()
     }
   }, [email, password, submitAttempted])
+
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      showError('Email Required', 'Please enter your email address first.')
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim()
+      })
+
+      if (error) {
+        throw error
+      }
+
+      success('Email Sent!', 'Please check your inbox for the verification link.')
+      setShowEmailVerificationHelp(false)
+    } catch (err: any) {
+      logError(err, {
+        component: 'LoginForm',
+        action: 'resend_verification'
+      })
+      showError('Failed to Send', err.message || 'Could not send verification email.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,8 +145,9 @@ export default function LoginPage() {
         setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' })
         showError('Login failed', 'Invalid email or password.')
       } else if (err.message?.includes('Email not confirmed')) {
-        setErrors({ general: 'Please check your email and click the confirmation link before signing in.' })
-        showError('Email not confirmed', 'Please confirm your email first.')
+        setErrors({ general: 'This email address needs to be verified. If you have an account with this email, please check your inbox for a verification link.' })
+        setShowEmailVerificationHelp(true)
+        showError('Email not confirmed', 'Please verify your email first.')
       } else if (err.message?.includes('Too many requests')) {
         setErrors({ general: 'Too many login attempts. Please wait a moment before trying again.' })
         showError('Too many attempts', 'Please wait before trying again.')
@@ -180,9 +213,7 @@ export default function LoginPage() {
                 aria-describedby={errors.email ? 'email-error' : undefined}
               />
               {errors.email && (
-                <p id="email-error" className="mt-1 text-sm text-red-600">
-                  {errors.email}
-                </p>
+                <p id="email-error" className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
 
@@ -206,9 +237,7 @@ export default function LoginPage() {
                 aria-describedby={errors.password ? 'password-error' : undefined}
               />
               {errors.password && (
-                <p id="password-error" className="mt-1 text-sm text-red-600">
-                  {errors.password}
-                </p>
+                <p id="password-error" className="mt-1 text-sm text-red-600">{errors.password}</p>
               )}
             </div>
           </div>
@@ -255,6 +284,41 @@ export default function LoginPage() {
             </div>
           </div>
         </form>
+
+        {/* Email Verification Help */}
+        {showEmailVerificationHelp && (
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-yellow-800">Email Verification Needed</h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>If you have an account with this email address, it may need verification. Check your inbox for a verification link, or request a new one below.</p>
+                  <p className="mt-1 text-xs">If you don't have an account, please <Link href="/signup" className="underline font-medium">sign up here</Link>.</p>
+                </div>
+                <div className="mt-4 space-x-3">
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="text-sm bg-yellow-100 text-yellow-800 hover:bg-yellow-200 px-3 py-1 rounded font-medium disabled:opacity-50"
+                  >
+                    {loading ? 'Sending...' : 'Send Verification Email'}
+                  </button>
+                  <button
+                    onClick={() => setShowEmailVerificationHelp(false)}
+                    className="text-sm text-yellow-700 hover:text-yellow-600 font-medium"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center">

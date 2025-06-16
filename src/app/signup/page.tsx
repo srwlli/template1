@@ -24,6 +24,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
   const { success, error: showError } = useToastHelpers()
@@ -82,6 +83,36 @@ export default function SignUpPage() {
     }
   }, [name, email, password, confirmPassword, submitAttempted])
 
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      showError('Email Required', 'Please enter your email address first.')
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim()
+      })
+
+      if (error) {
+        throw error
+      }
+
+      success('Email Sent!', 'Please check your inbox for the verification link.')
+    } catch (err: any) {
+      logError(err, {
+        component: 'SignupForm',
+        action: 'resend_verification'
+      })
+      showError('Failed to Send', err.message || 'Could not send verification email.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
@@ -124,11 +155,14 @@ export default function SignUpPage() {
         } else {
           success(
             'Account created!',
-            'Please check your email for a confirmation link.'
+            'Please check your email for a confirmation link to activate your account.'
           )
-          // Clear form
+          
+          // Show additional UI for unverified users
+          setShowVerificationPrompt(true)
+          
+          // Clear form but keep email for resend functionality
           setName('')
-          setEmail('')
           setPassword('')
           setConfirmPassword('')
           setSubmitAttempted(false)
@@ -146,6 +180,12 @@ export default function SignUpPage() {
       if (err.message?.includes('User already registered')) {
         setErrors({ email: 'An account with this email already exists' })
         showError('Account exists', 'Please try signing in instead.')
+      } else if (err.message?.includes('Password should be at least')) {
+        setErrors({ password: 'Password must be at least 6 characters long' })
+        showError('Weak password', 'Please choose a stronger password.')
+      } else if (err.message?.includes('Signup is disabled')) {
+        setErrors({ general: 'Account registration is currently disabled. Please contact support.' })
+        showError('Registration unavailable', 'Please contact support for assistance.')
       } else {
         const message = err.message || 'An unexpected error occurred. Please try again.'
         setErrors({ general: message })
@@ -166,21 +206,34 @@ export default function SignUpPage() {
     return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
   }
 
+  if (loading && !submitAttempted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        {/* Header */}
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link
+              href="/login"
+              className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+            >
               sign in to your existing account
             </Link>
           </p>
         </div>
 
+        {/* Signup Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="space-y-4">
             {/* Name Field */}
@@ -192,15 +245,18 @@ export default function SignUpPage() {
                 id="name"
                 name="name"
                 type="text"
+                autoComplete="name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={getFieldErrorClass(!!errors.name)}
                 placeholder="Enter your full name"
                 disabled={loading}
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? 'name-error' : undefined}
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                <p id="name-error" className="mt-1 text-sm text-red-600">{errors.name}</p>
               )}
             </div>
 
@@ -213,15 +269,18 @@ export default function SignUpPage() {
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={getFieldErrorClass(!!errors.email)}
                 placeholder="Enter your email"
                 disabled={loading}
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'email-error' : undefined}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                <p id="email-error" className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
 
@@ -234,15 +293,18 @@ export default function SignUpPage() {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="new-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={getFieldErrorClass(!!errors.password)}
                 placeholder="Create a password (min. 6 characters)"
                 disabled={loading}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'password-error' : undefined}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <p id="password-error" className="mt-1 text-sm text-red-600">{errors.password}</p>
               )}
             </div>
 
@@ -255,15 +317,18 @@ export default function SignUpPage() {
                 id="confirm-password"
                 name="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className={getFieldErrorClass(!!errors.confirmPassword)}
                 placeholder="Confirm your password"
                 disabled={loading}
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
               />
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                <p id="confirm-password-error" className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
               )}
             </div>
           </div>
@@ -313,6 +378,34 @@ export default function SignUpPage() {
             </Link>
           </p>
         </form>
+
+        {/* Email Verification Prompt */}
+        {showVerificationPrompt && (
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-blue-800">Verify Your Email</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>We've sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to activate your account.</p>
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="text-sm bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1 rounded font-medium disabled:opacity-50"
+                  >
+                    {loading ? 'Sending...' : 'Resend Verification Email'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
