@@ -1,6 +1,6 @@
 # Template - Modern Web Application
 
-A production-ready web application template built with Next.js 14, TypeScript, Tailwind CSS, and Supabase. Features secure authentication, user management, responsive design, and modern development practices.
+A production-ready web application template built with Next.js 14, TypeScript, Tailwind CSS, and Supabase. Features secure authentication, user management, responsive design, error monitoring, and modern development practices.
 
 ## ✨ Features
 
@@ -12,6 +12,7 @@ A production-ready web application template built with Next.js 14, TypeScript, T
 - 🎨 **Modern UI** - Clean, professional interface components
 - ⚡ **Performance Optimized** - Next.js 14 with App Router
 - 🔧 **TypeScript** - Full type safety and developer experience
+- 🚨 **Error Monitoring** - Sentry integration for production reliability
 - 🚀 **Production Ready** - Vercel deployment optimized
 
 ## 🚀 Quick Start
@@ -36,8 +37,8 @@ A production-ready web application template built with Next.js 14, TypeScript, T
 
 2. **Install dependencies**
    ```bash
-   # Install Supabase packages (MODERN - use these!)
-   npm install @supabase/supabase-js @supabase/ssr
+   # Install required packages
+   npm install @supabase/supabase-js @supabase/ssr @sentry/nextjs react-error-boundary
    npm install -D @types/node
    
    # ⚠️ DO NOT install @supabase/auth-helpers-nextjs (deprecated)
@@ -70,11 +71,12 @@ Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Next.js** | 14.x | React framework with App Router |
+| **Next.js** | 14.2.29 | React framework with App Router |
 | **React** | 18.x | User interface library |
 | **TypeScript** | 5.x | Static type checking |
-| **Tailwind CSS** | 3.x | Utility-first CSS framework |
-| **Supabase** | Latest | Authentication & database |
+| **Tailwind CSS** | 3.4.1 | Utility-first CSS framework |
+| **Supabase** | 2.50.0 | Authentication & database |
+| **Sentry** | 9.28.1 | Error monitoring & performance |
 | **ESLint** | 8.x | Code linting and formatting |
 
 ### Why These Versions?
@@ -82,6 +84,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see your application.
 - **Next.js 14** - Stable, production-tested with React 18
 - **Modern Supabase packages** - Latest SSR support, no deprecated dependencies
 - **TypeScript strict mode** - Enhanced code quality and developer experience
+- **Sentry integration** - Production-grade error monitoring and performance tracking
 
 ## 📁 File Structure
 
@@ -107,17 +110,22 @@ project-root/
 │   └── lib/
 │       └── supabase.ts           # Supabase client configuration
 ├── middleware.ts                 # Route protection middleware
-├── .env.local                    # Environment variables (not tracked)
-├── package.json                  # Dependencies and scripts
-└── README.md                     # This file
+├── tailwind.config.ts           # Tailwind configuration
+├── tsconfig.json                # TypeScript configuration
+├── next.config.mjs              # Next.js configuration
+├── postcss.config.mjs           # PostCSS configuration
+├── .env.local                   # Environment variables (not tracked)
+├── package.json                 # Dependencies and scripts
+└── README.md                    # This file
 ```
 
 ### Key Components
 
 - **AuthProvider** - Global authentication state management
 - **ProtectedRoute** - Wrapper for pages requiring authentication
-- **middleware.ts** - Server-side route protection
+- **middleware.ts** - Server-side route protection with redirect handling
 - **Header** - Dynamic navigation based on auth state
+- **Error boundaries** - React error handling with Sentry integration
 
 ## 🎨 Customization
 
@@ -133,9 +141,9 @@ project-root/
    ```
 
 2. **Customize colors** in Tailwind config:
-   ```javascript
-   // tailwind.config.js
-   module.exports = {
+   ```typescript
+   // tailwind.config.ts
+   const config: Config = {
      theme: {
        extend: {
          colors: {
@@ -157,45 +165,64 @@ project-root/
 
 2. **Extend user profile fields**:
    ```typescript
-   // Update AuthProvider and profile forms
-   // Add new fields to Supabase user metadata
+   // Update user metadata structure in Supabase
+   interface UserMetadata {
+     name?: string
+     bio?: string
+     location?: string
+     avatar_url?: string
+     // Add your custom fields
+   }
    ```
 
 3. **Add new pages**:
    ```bash
    # Create new page directory
    mkdir src/app/your-page
-   # Add page.tsx file with your content
+   echo "export default function YourPage() { return <div>Your Page</div> }" > src/app/your-page/page.tsx
    ```
 
-## 🗄️ Database Setup
+## 🔧 Development
 
-### Supabase Configuration
+### Available Scripts
 
-1. **Create Supabase project** at [supabase.com](https://supabase.com)
+```bash
+npm run dev          # Start development server
+npm run dev-mobile   # Start dev server with network access (0.0.0.0)
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run type-check   # Run TypeScript type checking
+npm run preflight    # Run type-check and lint (pre-deployment)
+```
 
-2. **Configure Authentication**:
-   - Enable email authentication
-   - Set site URL to your domain (localhost:3000 for development)
-   - Configure email templates (optional)
+### Development Workflow
 
-3. **Set up Row Level Security** (optional):
-   ```sql
-   -- Example: User profiles table
-   CREATE TABLE profiles (
-     id uuid REFERENCES auth.users(id) PRIMARY KEY,
-     name text,
-     bio text,
-     created_at timestamp DEFAULT now()
-   );
-   
-   -- Enable RLS
-   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-   
-   -- Policy: Users can only see/edit their own profile
-   CREATE POLICY "Users can view own profile" ON profiles
-     FOR SELECT USING (auth.uid() = id);
+1. **Make changes** to your code
+2. **Run preflight checks**:
+   ```bash
+   npm run preflight
    ```
+3. **Test locally**:
+   ```bash
+   npm run build
+   npm run start
+   ```
+4. **Deploy** to production
+
+### Environment Variables
+
+Create a `.env.local` file in your project root:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Optional: Sentry Configuration (for error monitoring)
+SENTRY_AUTH_TOKEN=your-sentry-auth-token
+NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
+```
 
 ## 🚀 Deployment
 
@@ -218,6 +245,8 @@ project-root/
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your-production-url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-production-key
+   SENTRY_AUTH_TOKEN=your-sentry-token
+   NEXT_PUBLIC_SENTRY_DSN=your-sentry-dsn
    ```
 
 ### Other Platforms
@@ -225,6 +254,24 @@ project-root/
 - **Netlify** - Works with static export
 - **Railway** - Full-stack deployment
 - **DigitalOcean App Platform** - Container deployment
+
+## 🔒 Security Features
+
+### Authentication Security
+- **Server-side route protection** via Next.js middleware
+- **Client-side route protection** via React components
+- **Automatic session refresh** and token management
+- **Secure cookie handling** with HTTP-only flags
+
+### Database Security
+- **Row Level Security (RLS)** enabled by default
+- **User isolation** - users can only access their own data
+- **SQL injection protection** via Supabase client
+
+### Production Security
+- **Environment variable validation**
+- **HTTPS enforcement** via Vercel
+- **Error monitoring** without exposing sensitive data
 
 ## 🐛 Troubleshooting
 
@@ -279,6 +326,7 @@ npm install @supabase/supabase-js @supabase/ssr  # Use these instead
 3. **Test authentication flow** step by step
 4. **Check Supabase dashboard** for auth logs
 5. **Review middleware.ts** for route protection issues
+6. **Check Sentry dashboard** for production errors
 
 ## 📚 Documentation Links
 
@@ -286,27 +334,3 @@ npm install @supabase/supabase-js @supabase/ssr  # Use these instead
 - [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Built with [Next.js](https://nextjs.org)
-- Authentication powered by [Supabase](https://supabase.com)
-- Styled with [Tailwind CSS](https://tailwindcss.com)
-- Icons from [Heroicons](https://heroicons.com)
-
----
-
-**Template** - Modern Web Application Template  
-Built by ❤️ with AI assistance for developers who want to ship fast.
