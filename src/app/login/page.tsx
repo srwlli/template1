@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 import { useToastHelpers } from '@/components/ToastProvider'
 import { logError, logUserAction } from '@/lib/errorLogger'
+import { AuthRoute } from '@/components/AuthRoute'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
@@ -72,7 +73,7 @@ const EmailVerificationHelp = ({ onResend, onDismiss, loading }) => (
   </Card>
 )
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -80,15 +81,7 @@ export default function LoginPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [showEmailVerificationHelp, setShowEmailVerificationHelp] = useState(false)
   const router = useRouter()
-  const { user } = useAuth() // ✅ ADDED: Real auth hook
-  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
-
-  // ✅ ADDED: Redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      router.push('/dashboard')
-    }
-  }, [user, router])
+  const { success, error: showError } = useToastHelpers()
 
   const validateField = (field: string, value: string): string | undefined => {
     switch (field) {
@@ -125,7 +118,6 @@ export default function LoginPage() {
     }
   }, [email, password, submitAttempted])
 
-  // ✅ REPLACED: Real Supabase resend verification
   const handleResendVerification = async () => {
     if (!email.trim()) {
       showError('Email Required', 'Please enter your email address first.')
@@ -157,7 +149,6 @@ export default function LoginPage() {
     }
   }
 
-  // ✅ REPLACED: Real Supabase login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
@@ -200,7 +191,6 @@ export default function LoginPage() {
         additionalData: { email }
       })
 
-      // ✅ ADDED: Proper error handling
       if (err.message?.includes('Invalid login credentials')) {
         setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' })
         showError('Invalid Credentials', 'Please check your email and password.')
@@ -231,15 +221,6 @@ export default function LoginPage() {
     return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
   }
 
-  // ✅ ADDED: Loading state for auth check
-  if (loading && !submitAttempted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -261,7 +242,6 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            {/* ✅ ADDED: Proper form submission */}
             <form className="space-y-6" onSubmit={handleSubmit} noValidate>
               <div className="space-y-4">
                 {/* Email Field */}
@@ -377,5 +357,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <AuthRoute>
+      <LoginContent />
+    </AuthRoute>
   )
 }

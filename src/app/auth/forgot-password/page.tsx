@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 import { useToastHelpers } from '@/components/ToastProvider'
 import { logError, logUserAction } from '@/lib/errorLogger'
+import { AuthRoute } from '@/components/AuthRoute'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
