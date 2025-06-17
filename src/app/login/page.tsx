@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
@@ -76,14 +80,15 @@ export default function LoginPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [showEmailVerificationHelp, setShowEmailVerificationHelp] = useState(false)
   const router = useRouter()
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
 
-  // Redirect if already logged in (replace with actual auth check)
+  // ✅ ADDED: Redirect if already logged in
   useEffect(() => {
-    // const user = getUserFromAuth(); // Replace with actual auth check
-    // if (user) {
-    //   router.push('/dashboard')
-    // }
-  }, [router])
+    if (user) {
+      router.push('/dashboard')
+    }
+  }, [user, router])
 
   const validateField = (field: string, value: string): string | undefined => {
     switch (field) {
@@ -120,34 +125,46 @@ export default function LoginPage() {
     }
   }, [email, password, submitAttempted])
 
+  // ✅ REPLACED: Real Supabase resend verification
   const handleResendVerification = async () => {
     if (!email.trim()) {
-      alert('Please enter your email address first.')
+      showError('Email Required', 'Please enter your email address first.')
       return
     }
 
     setLoading(true)
     
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.resend call
-      setTimeout(() => {
-        alert('Verification email sent! Please check your inbox.')
-        setShowEmailVerificationHelp(false)
-        setLoading(false)
-      }, 1000)
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim()
+      })
+
+      if (error) {
+        throw error
+      }
+
+      success('Email Sent!', 'Please check your inbox for the verification link.')
+      setShowEmailVerificationHelp(false)
     } catch (err: any) {
-      alert('Failed to send verification email.')
+      logError(err, {
+        component: 'LoginForm',
+        action: 'resend_verification'
+      })
+      showError('Failed to Send', err.message || 'Could not send verification email.')
+    } finally {
       setLoading(false)
     }
   }
 
+  // ✅ REPLACED: Real Supabase login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
     
     if (!validateForm()) {
-      alert('Please fix the errors below')
+      logUserAction('Login validation failed', { errors })
+      showError('Please fix the errors below')
       return
     }
 
@@ -155,47 +172,51 @@ export default function LoginPage() {
     setErrors({})
 
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.signInWithPassword call
-      setTimeout(() => {
-        // Simulate different error scenarios for demo
-        const randomError = Math.random()
-        
-        if (randomError < 0.3) {
-          // Simulate email not confirmed error
-          setErrors({ general: 'This email address needs to be verified. If you have an account with this email, please check your inbox for a verification link.' })
-          setShowEmailVerificationHelp(true)
-          alert('Email not confirmed. Please verify your email first.')
-        } else if (randomError < 0.6) {
-          // Simulate invalid credentials
-          setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' })
-          alert('Invalid email or password.')
-        } else {
-          // Simulate success
-          alert('Welcome back! Successfully signed in.')
-          router.push('/dashboard')
-        }
-        
-        setLoading(false)
-      }, 2000)
+      logUserAction('Login attempt started', { email })
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (data.user) {
+        logUserAction('Login successful', { 
+          userId: data.user.id,
+          emailConfirmed: !!data.user.email_confirmed_at 
+        })
+
+        success('Welcome back!', 'Successfully signed in.')
+        router.push('/dashboard')
+      }
 
     } catch (err: any) {
-      // Handle specific error cases
+      logError(err, {
+        component: 'LoginForm',
+        action: 'user_login',
+        additionalData: { email }
+      })
+
+      // ✅ ADDED: Proper error handling
       if (err.message?.includes('Invalid login credentials')) {
         setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' })
-        alert('Invalid email or password.')
+        showError('Invalid Credentials', 'Please check your email and password.')
       } else if (err.message?.includes('Email not confirmed')) {
         setErrors({ general: 'This email address needs to be verified. If you have an account with this email, please check your inbox for a verification link.' })
         setShowEmailVerificationHelp(true)
-        alert('Email not confirmed. Please verify your email first.')
+        showError('Email Not Verified', 'Please verify your email first.')
       } else if (err.message?.includes('Too many requests')) {
         setErrors({ general: 'Too many login attempts. Please wait a moment before trying again.' })
-        alert('Too many attempts. Please wait before trying again.')
+        showError('Too Many Attempts', 'Please wait before trying again.')
       } else {
         const message = err.message || 'An unexpected error occurred. Please try again.'
         setErrors({ general: message })
-        alert(`Login failed: ${message}`)
+        showError('Login Failed', message)
       }
+    } finally {
       setLoading(false)
     }
   }
@@ -208,6 +229,15 @@ export default function LoginPage() {
     }
     
     return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
+  }
+
+  // ✅ ADDED: Loading state for auth check
+  if (loading && !submitAttempted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -231,7 +261,8 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            <div className="space-y-6">
+            {/* ✅ ADDED: Proper form submission */}
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
               <div className="space-y-4">
                 {/* Email Field */}
                 <div>
@@ -291,7 +322,6 @@ export default function LoginPage() {
               <div>
                 <button
                   type="submit"
-                  onClick={handleSubmit}
                   disabled={loading}
                   className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
@@ -317,7 +347,7 @@ export default function LoginPage() {
                   </Link>
                 </div>
               </div>
-            </div>
+            </form>
           </CardContent>
         </Card>
 

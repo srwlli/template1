@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
@@ -46,14 +50,15 @@ export default function ForgotPasswordPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const router = useRouter()
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
 
-  // Redirect if already logged in (replace with actual auth check)
+  // ✅ ADDED: Redirect if already logged in
   useEffect(() => {
-    // const user = getUserFromAuth(); // Replace with actual auth check
-    // if (user) {
-    //   router.push('/dashboard')
-    // }
-  }, [router])
+    if (user) {
+      router.push('/dashboard')
+    }
+  }, [user, router])
 
   const validateField = (field: string, value: string): string | undefined => {
     switch (field) {
@@ -83,12 +88,14 @@ export default function ForgotPasswordPage() {
     }
   }, [email, submitAttempted])
 
+  // ✅ REPLACED: Real Supabase password reset
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
     
     if (!validateForm()) {
-      alert('Please fix the errors below')
+      logUserAction('Forgot password validation failed', { errors })
+      showError('Please fix the errors below')
       return
     }
 
@@ -96,26 +103,78 @@ export default function ForgotPasswordPage() {
     setErrors({})
 
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.resetPasswordForEmail call
-      setTimeout(() => {
-        setEmailSent(true)
-        setLoading(false)
-        alert('Password reset email sent!')
-      }, 2000)
+      logUserAction('Password reset attempt started', { email })
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      logUserAction('Password reset email sent', { email })
+
+      // Always show success for security (don't reveal if email exists)
+      setEmailSent(true)
+      success('Email Sent!', 'If an account with this email exists, you will receive a password reset link.')
 
     } catch (err: any) {
-      // Handle specific errors
+      logError(err, {
+        component: 'ForgotPasswordForm',
+        action: 'password_reset',
+        additionalData: { email }
+      })
+
+      // ✅ ADDED: Proper error handling
       if (err.message?.includes('Too many requests')) {
         setErrors({ general: 'Too many reset requests. Please wait a moment before trying again.' })
-        alert('Too many attempts. Please wait before trying again.')
+        showError('Rate Limited', 'Please wait before trying again.')
+      } else if (err.message?.includes('rate limit')) {
+        setErrors({ general: 'Too many attempts. Please wait 60 seconds before trying again.' })
+        showError('Too Many Attempts', 'Please wait before trying again.')
       } else {
         // Use generic message for security (don't reveal if email exists)
         const message = 'If an account with this email exists, you will receive a password reset link.'
         setErrors({ general: message })
-        alert(message)
+        success('Email Sent!', message)
         setEmailSent(true)
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ✅ ADDED: Resend functionality
+  const handleResend = async () => {
+    if (!email.trim()) {
+      showError('Email Required', 'Please enter your email address first.')
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      logUserAction('Password reset resend attempt', { email })
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      success('Email Sent!', 'New password reset email sent.')
+
+    } catch (err: any) {
+      logError(err, {
+        component: 'ForgotPasswordForm',
+        action: 'password_reset_resend',
+        additionalData: { email }
+      })
+      showError('Send Failed', 'Unable to send reset email. Please try again later.')
+    } finally {
       setLoading(false)
     }
   }
@@ -128,6 +187,15 @@ export default function ForgotPasswordPage() {
     }
     
     return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
+  }
+
+  // ✅ ADDED: Loading state for auth check
+  if (loading && !submitAttempted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   if (emailSent) {
@@ -150,14 +218,11 @@ export default function ForgotPasswordPage() {
               <p className="text-center text-sm text-gray-500">
                 Didn't receive the email? Check your spam folder or{' '}
                 <button
-                  onClick={() => {
-                    setEmailSent(false)
-                    setSubmitAttempted(false)
-                    setErrors({})
-                  }}
-                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                  onClick={handleResend}
+                  disabled={loading}
+                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors disabled:opacity-50"
                 >
-                  try again
+                  {loading ? 'Sending...' : 'try again'}
                 </button>
               </p>
               
@@ -190,7 +255,8 @@ export default function ForgotPasswordPage() {
           </CardHeader>
 
           <CardContent>
-            <div className="space-y-6">
+            {/* ✅ ADDED: Proper form submission */}
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
               {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -224,7 +290,6 @@ export default function ForgotPasswordPage() {
               <div>
                 <button
                   type="submit"
-                  onClick={handleSubmit}
                   disabled={loading}
                   className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
@@ -248,7 +313,7 @@ export default function ForgotPasswordPage() {
                   Back to Login
                 </Link>
               </div>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>

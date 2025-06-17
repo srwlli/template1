@@ -3,6 +3,10 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface VerificationState {
@@ -57,6 +61,8 @@ function EmailConfirmContent() {
   const [resending, setResending] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
 
   useEffect(() => {
     const confirmEmail = async () => {
@@ -74,59 +80,124 @@ function EmailConfirmContent() {
           return
         }
 
-        // Simulate API call for demo
-        // Replace with actual supabase.auth.verifyOtp call
-        setTimeout(() => {
-          // Simulate success for demo
+        logUserAction('Email verification attempt started', { token_hash: token_hash.substring(0, 8) + '...' })
+
+        // ✅ REPLACED: Real Supabase email verification
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: 'email'
+        })
+
+        if (error) {
+          throw error
+        }
+
+        if (data.user) {
+          logUserAction('Email verification successful', { 
+            userId: data.user.id,
+            emailConfirmed: !!data.user.email_confirmed_at 
+          })
+
           setVerificationState({
             status: 'success',
             message: 'Email verified successfully! Redirecting to your dashboard...'
           })
 
+          success('Email Verified!', 'Your account has been activated successfully.')
+
           // Redirect after showing success message
           setTimeout(() => {
             router.push(next)
           }, 2000)
-        }, 2000)
+        }
 
       } catch (err: any) {
-        setVerificationState({
-          status: 'error',
-          message: 'An unexpected error occurred. Please try again.',
-          showResend: true
+        logError(err, {
+          component: 'EmailConfirmPage',
+          action: 'email_verification',
+          additionalData: { 
+            token_hash: searchParams.get('token_hash')?.substring(0, 8) + '...',
+            type: searchParams.get('type')
+          }
         })
+
+        // ✅ ADDED: Proper error handling
+        if (err.message?.includes('Token has expired')) {
+          setVerificationState({
+            status: 'expired',
+            message: 'This verification link has expired. Please request a new one.',
+            showResend: true
+          })
+          showError('Link Expired', 'Please request a new verification email.')
+        } else if (err.message?.includes('Invalid token')) {
+          setVerificationState({
+            status: 'invalid',
+            message: 'Invalid verification link. Please check your email for the correct link.',
+            showResend: true
+          })
+          showError('Invalid Link', 'Please use the most recent verification email.')
+        } else {
+          setVerificationState({
+            status: 'error',
+            message: 'An unexpected error occurred. Please try again.',
+            showResend: true
+          })
+          showError('Verification Failed', err.message || 'Please try again.')
+        }
       }
     }
 
     confirmEmail()
-  }, [searchParams, router])
+  }, [searchParams, router, success, showError])
 
+  // ✅ REPLACED: Real resend email functionality
   const handleResendEmail = async () => {
     const email = searchParams.get('email')
     
     if (!email) {
-      alert('Please go back to the signup page to request a new verification email.')
+      showError('Email Required', 'Please go back to the signup page to request a new verification email.')
       return
     }
 
     setResending(true)
     
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.resend call
-      setTimeout(() => {
-        alert('New verification email sent. Please check your inbox.')
-        setVerificationState(prev => ({
-          ...prev,
-          message: 'New verification email sent. Please check your inbox.'
-        }))
-        setResending(false)
-      }, 1000)
+      logUserAction('Resend verification email attempt', { email })
+
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      })
+
+      if (error) {
+        throw error
+      }
+
+      success('Email Sent!', 'New verification email sent. Please check your inbox.')
+      setVerificationState(prev => ({
+        ...prev,
+        message: 'New verification email sent. Please check your inbox.'
+      }))
+
     } catch (err: any) {
-      alert('Could not send verification email.')
+      logError(err, {
+        component: 'EmailConfirmPage',
+        action: 'resend_verification',
+        additionalData: { email }
+      })
+      showError('Send Failed', err.message || 'Could not send verification email.')
+    } finally {
       setResending(false)
     }
   }
+
+  // ✅ ADDED: Redirect if already authenticated
+  useEffect(() => {
+    if (user && verificationState.status === 'loading') {
+      // User is already logged in, redirect to dashboard
+      router.push('/dashboard')
+    }
+  }, [user, verificationState.status, router])
 
   const getStatusColor = () => {
     switch (verificationState.status) {

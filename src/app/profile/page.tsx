@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
@@ -77,19 +82,8 @@ const AccountInfoItem = ({ label, value, type = 'text' }) => {
 }
 
 export default function ProfilePage() {
-  // Mock user data for demo - replace with actual user from auth provider
-  const user = {
-    email: 'user@example.com',
-    id: 'abc123def456ghi789',
-    created_at: '2024-01-15T10:30:00Z',
-    last_sign_in_at: '2025-06-17T08:15:00Z',
-    email_confirmed_at: '2024-01-15T11:00:00Z',
-    user_metadata: {
-      name: 'John Doe',
-      bio: 'Software developer passionate about creating amazing user experiences.',
-      location: 'San Francisco, CA'
-    }
-  }
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -100,7 +94,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('')
   const [location, setLocation] = useState('')
 
-  // Load user profile data
+  // ✅ ADDED: Load real user profile data
   useEffect(() => {
     if (user) {
       setName(user.user_metadata?.name || '')
@@ -148,12 +142,14 @@ export default function ProfilePage() {
     }
   }, [name, bio, location, submitAttempted])
 
+  // ✅ REPLACED: Real Supabase updateUser call
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
     
     if (!validateForm()) {
-      alert('Please fix the errors below')
+      logUserAction('Profile validation failed', { errors })
+      showError('Please fix the errors below')
       return
     }
 
@@ -161,26 +157,47 @@ export default function ProfilePage() {
     setErrors({})
 
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.updateUser call
-      setTimeout(() => {
-        alert('Profile updated! Your changes have been saved successfully.')
-        setLoading(false)
-      }, 2000)
+      logUserAction('Profile update attempt started', { userId: user?.id })
+
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          name: name.trim(),
+          bio: bio.trim(),
+          location: location.trim(),
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      logUserAction('Profile update successful', { 
+        userId: user?.id,
+        updatedFields: { name: name.trim(), bio: bio.trim(), location: location.trim() }
+      })
+
+      success('Profile Updated!', 'Your changes have been saved successfully.')
 
     } catch (err: any) {
-      // Handle specific error cases
+      logError(err, {
+        component: 'ProfileForm',
+        action: 'update_profile',
+        additionalData: { userId: user?.id }
+      })
+
+      // ✅ ADDED: Proper error handling
       if (err.message?.includes('rate limit')) {
         setErrors({ general: 'Too many updates. Please wait a moment before trying again.' })
-        alert('Rate limited. Please wait before updating again.')
+        showError('Rate Limited', 'Please wait before updating again.')
       } else if (err.message?.includes('network')) {
         setErrors({ general: 'Network error. Please check your connection and try again.' })
-        alert('Network error. Please check your connection.')
+        showError('Network Error', 'Please check your connection.')
       } else {
         const message = err.message || 'An unexpected error occurred. Please try again.'
         setErrors({ general: message })
-        alert(`Update failed: ${message}`)
+        showError('Update Failed', message)
       }
+    } finally {
       setLoading(false)
     }
   }
@@ -196,176 +213,178 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-          <p className="mt-2 text-gray-600">Manage your personal information and preferences.</p>
-        </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+            <p className="mt-2 text-gray-600">Manage your personal information and preferences.</p>
+          </div>
 
-        {/* Profile Form */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your profile details below.</CardDescription>
-          </CardHeader>
+          {/* Profile Form */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Update your profile details below.</CardDescription>
+            </CardHeader>
 
-          <CardContent>
-            <div className="space-y-6">
-              {/* Email Field (Disabled) */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={user?.email || ''}
-                  disabled
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 cursor-not-allowed sm:text-sm"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Email cannot be changed. Contact support if you need to update your email address.
-                </p>
-              </div>
-
-              {/* Name Field */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={getFieldErrorClass(!!errors.name)}
-                  placeholder="Enter your full name"
-                  disabled={loading}
-                  aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? 'name-error' : undefined}
-                />
-                {errors.name && (
-                  <p id="name-error" className="mt-1 text-sm text-red-600">
-                    {errors.name}
+            <CardContent>
+              {/* ✅ ADDED: Proper form submission */}
+              <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+                {/* Email Field (Disabled) */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 cursor-not-allowed sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Email cannot be changed. Contact support if you need to update your email address.
                   </p>
-                )}
-              </div>
+                </div>
 
-              {/* Bio Field */}
-              <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                  Bio
-                </label>
-                <textarea
-                  id="bio"
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  className={getFieldErrorClass(!!errors.bio)}
-                  placeholder="Tell us a little about yourself..."
-                  disabled={loading}
-                  aria-invalid={!!errors.bio}
-                  aria-describedby={errors.bio ? 'bio-error' : 'bio-help'}
-                />
-                {errors.bio ? (
-                  <p id="bio-error" className="mt-1 text-sm text-red-600">
-                    {errors.bio}
-                  </p>
-                ) : (
-                  <div id="bio-help">
-                    <p className="mt-1 text-xs text-gray-500">
-                      Brief description for your profile.
+                {/* Name Field */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={getFieldErrorClass(!!errors.name)}
+                    placeholder="Enter your full name"
+                    disabled={loading}
+                    aria-invalid={!!errors.name}
+                    aria-describedby={errors.name ? 'name-error' : undefined}
+                  />
+                  {errors.name && (
+                    <p id="name-error" className="mt-1 text-sm text-red-600">
+                      {errors.name}
                     </p>
-                    <CharacterCounter text={bio} max={500} />
-                  </div>
-                )}
-              </div>
-
-              {/* Location Field */}
-              <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  id="location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className={getFieldErrorClass(!!errors.location)}
-                  placeholder="City, Country"
-                  disabled={loading}
-                  aria-invalid={!!errors.location}
-                  aria-describedby={errors.location ? 'location-error' : undefined}
-                />
-                {errors.location && (
-                  <p id="location-error" className="mt-1 text-sm text-red-600">
-                    {errors.location}
-                  </p>
-                )}
-              </div>
-
-              {/* General Error Message */}
-              {errors.general && (
-                <ErrorAlert message={errors.general} />
-              )}
-
-              {/* Submit Button */}
-              <div className="flex justify-end pt-4 border-t">
-                <button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  {loading ? (
-                    <>
-                      <LoadingSpinner />
-                      Updating...
-                    </>
-                  ) : (
-                    'Update Profile'
                   )}
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
 
-        {/* Account Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>View your account details and membership information.</CardDescription>
-          </CardHeader>
+                {/* Bio Field */}
+                <div>
+                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                    Bio
+                  </label>
+                  <textarea
+                    id="bio"
+                    rows={4}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className={getFieldErrorClass(!!errors.bio)}
+                    placeholder="Tell us a little about yourself..."
+                    disabled={loading}
+                    aria-invalid={!!errors.bio}
+                    aria-describedby={errors.bio ? 'bio-error' : 'bio-help'}
+                  />
+                  {errors.bio ? (
+                    <p id="bio-error" className="mt-1 text-sm text-red-600">
+                      {errors.bio}
+                    </p>
+                  ) : (
+                    <div id="bio-help">
+                      <p className="mt-1 text-xs text-gray-500">
+                        Brief description for your profile.
+                      </p>
+                      <CharacterCounter text={bio} max={500} />
+                    </div>
+                  )}
+                </div>
 
-          <CardContent>
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <AccountInfoItem
-                label="Account Created"
-                value={user?.created_at}
-                type="date"
-              />
-              <AccountInfoItem
-                label="Last Sign In"
-                value={user?.last_sign_in_at}
-                type="date"
-              />
-              <AccountInfoItem
-                label="Email Verified"
-                value={user?.email_confirmed_at}
-                type="verification"
-              />
-              <AccountInfoItem
-                label="User ID"
-                value={user?.id}
-                type="id"
-              />
-            </dl>
-          </CardContent>
-        </Card>
+                {/* Location Field */}
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className={getFieldErrorClass(!!errors.location)}
+                    placeholder="City, Country"
+                    disabled={loading}
+                    aria-invalid={!!errors.location}
+                    aria-describedby={errors.location ? 'location-error' : undefined}
+                  />
+                  {errors.location && (
+                    <p id="location-error" className="mt-1 text-sm text-red-600">
+                      {errors.location}
+                    </p>
+                  )}
+                </div>
+
+                {/* General Error Message */}
+                {errors.general && (
+                  <ErrorAlert message={errors.general} />
+                )}
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4 border-t">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {loading ? (
+                      <>
+                        <LoadingSpinner />
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Profile'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Account Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>View your account details and membership information.</CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                <AccountInfoItem
+                  label="Account Created"
+                  value={user?.created_at}
+                  type="date"
+                />
+                <AccountInfoItem
+                  label="Last Sign In"
+                  value={user?.last_sign_in_at}
+                  type="date"
+                />
+                <AccountInfoItem
+                  label="Email Verified"
+                  value={user?.email_confirmed_at}
+                  type="verification"
+                />
+                <AccountInfoItem
+                  label="User ID"
+                  value={user?.id}
+                  type="id"
+                />
+              </dl>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }

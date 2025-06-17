@@ -1,6 +1,11 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 // Metric Card Component for dashboard stats
@@ -69,184 +74,234 @@ const ActivityItem = ({ title, description, time, icon, iconBg }) => {
 };
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
+
+  // ✅ ADDED: Real action handlers with logging
+  const handleCreateProject = () => {
+    try {
+      logUserAction('Dashboard action: Create new project', { userId: user?.id })
+      success('Feature Coming Soon!', 'Project creation will be available in the next update.')
+      // TODO: Replace with actual project creation logic
+    } catch (err: any) {
+      logError(err, {
+        component: 'Dashboard',
+        action: 'create_project'
+      })
+      showError('Action Failed', 'Unable to create project. Please try again.')
+    }
+  }
+
+  const handleGenerateReport = () => {
+    try {
+      logUserAction('Dashboard action: Generate report', { userId: user?.id })
+      success('Report Generated!', 'Your analytics report is being prepared.')
+      // TODO: Replace with actual report generation logic
+    } catch (err: any) {
+      logError(err, {
+        component: 'Dashboard',
+        action: 'generate_report'
+      })
+      showError('Report Failed', 'Unable to generate report. Please try again.')
+    }
+  }
+
+  const handleInviteTeamMember = () => {
+    try {
+      logUserAction('Dashboard action: Invite team member', { userId: user?.id })
+      router.push('/settings') // Navigate to settings for team management
+    } catch (err: any) {
+      logError(err, {
+        component: 'Dashboard',
+        action: 'invite_team_member'
+      })
+      showError('Navigation Failed', 'Unable to navigate to team settings.')
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Welcome back! Here's what's happening with your account.</p>
-        </div>
-
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MetricCard
-            title="Total Users"
-            value="1,234"
-            change="+12% from last month"
-            changeColor="text-green-600"
-            iconBg="bg-blue-500"
-            icon={
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-            }
-          />
-
-          <MetricCard
-            title="Revenue"
-            value="$45,678"
-            change="+8% from last month"
-            changeColor="text-green-600"
-            iconBg="bg-green-500"
-            icon={
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            }
-          />
-
-          <MetricCard
-            title="Active Projects"
-            value="24"
-            change="3 new this week"
-            changeColor="text-blue-600"
-            iconBg="bg-purple-500"
-            icon={
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
-          />
-
-          <MetricCard
-            title="Completion Rate"
-            value="87%"
-            change="+5% from last month"
-            changeColor="text-green-600"
-            iconBg="bg-orange-500"
-            icon={
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            }
-          />
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Quick Actions */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <QuickActionButton
-                  title="Create New Project"
-                  description="Start a new project"
-                  bgColor="bg-blue-50"
-                  hoverColor="hover:bg-blue-100"
-                  iconBg="bg-blue-500"
-                  onClick={() => alert('Create new project clicked!')}
-                  icon={
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  }
-                />
-
-                <QuickActionButton
-                  title="Generate Report"
-                  description="Create analytics report"
-                  bgColor="bg-green-50"
-                  hoverColor="hover:bg-green-100"
-                  iconBg="bg-green-500"
-                  onClick={() => alert('Generate report clicked!')}
-                  icon={
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  }
-                />
-
-                <QuickActionButton
-                  title="Invite Team Member"
-                  description="Add new team member"
-                  bgColor="bg-purple-50"
-                  hoverColor="hover:bg-purple-100"
-                  iconBg="bg-purple-500"
-                  onClick={() => alert('Invite team member clicked!')}
-                  icon={
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  }
-                />
-              </CardContent>
-            </Card>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="mt-2 text-gray-600">
+              Welcome back{user?.user_metadata?.name ? `, ${user.user_metadata.name}` : ''}! Here's what's happening with your account.
+            </p>
           </div>
 
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest updates and changes in your workspace</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ActivityItem
-                  title="New project created"
-                  description="Website redesign project was created by John Doe"
-                  time="2 hours ago"
-                  iconBg="bg-blue-100"
-                  icon={
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  }
-                />
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <MetricCard
+              title="Total Users"
+              value="1,234"
+              change="+12% from last month"
+              changeColor="text-green-600"
+              iconBg="bg-blue-500"
+              icon={
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+              }
+            />
 
-                <ActivityItem
-                  title="Task completed"
-                  description="Mobile app wireframes task was completed"
-                  time="4 hours ago"
-                  iconBg="bg-green-100"
-                  icon={
-                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  }
-                />
+            <MetricCard
+              title="Revenue"
+              value="$45,678"
+              change="+8% from last month"
+              changeColor="text-green-600"
+              iconBg="bg-green-500"
+              icon={
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              }
+            />
 
-                <ActivityItem
-                  title="Team member joined"
-                  description="Sarah Wilson joined the development team"
-                  time="1 day ago"
-                  iconBg="bg-purple-100"
-                  icon={
-                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  }
-                />
+            <MetricCard
+              title="Active Projects"
+              value="24"
+              change="3 new this week"
+              changeColor="text-blue-600"
+              iconBg="bg-purple-500"
+              icon={
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              }
+            />
 
-                <ActivityItem
-                  title="System maintenance"
-                  description="Scheduled maintenance completed successfully"
-                  time="2 days ago"
-                  iconBg="bg-orange-100"
-                  icon={
-                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                  }
-                />
-              </CardContent>
-            </Card>
+            <MetricCard
+              title="Completion Rate"
+              value="87%"
+              change="+5% from last month"
+              changeColor="text-green-600"
+              iconBg="bg-orange-500"
+              icon={
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              }
+            />
+          </div>
+
+          {/* Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Quick Actions */}
+            <div className="lg:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <QuickActionButton
+                    title="Create New Project"
+                    description="Start a new project"
+                    bgColor="bg-blue-50"
+                    hoverColor="hover:bg-blue-100"
+                    iconBg="bg-blue-500"
+                    onClick={handleCreateProject}
+                    icon={
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    }
+                  />
+
+                  <QuickActionButton
+                    title="Generate Report"
+                    description="Create analytics report"
+                    bgColor="bg-green-50"
+                    hoverColor="hover:bg-green-100"
+                    iconBg="bg-green-500"
+                    onClick={handleGenerateReport}
+                    icon={
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    }
+                  />
+
+                  <QuickActionButton
+                    title="Invite Team Member"
+                    description="Add new team member"
+                    bgColor="bg-purple-50"
+                    hoverColor="hover:bg-purple-100"
+                    iconBg="bg-purple-500"
+                    onClick={handleInviteTeamMember}
+                    icon={
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>Latest updates and changes in your workspace</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ActivityItem
+                    title="New project created"
+                    description="Website redesign project was created by John Doe"
+                    time="2 hours ago"
+                    iconBg="bg-blue-100"
+                    icon={
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    }
+                  />
+
+                  <ActivityItem
+                    title="Task completed"
+                    description="Mobile app wireframes task was completed"
+                    time="4 hours ago"
+                    iconBg="bg-green-100"
+                    icon={
+                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    }
+                  />
+
+                  <ActivityItem
+                    title="Team member joined"
+                    description="Sarah Wilson joined the development team"
+                    time="1 day ago"
+                    iconBg="bg-purple-100"
+                    icon={
+                      <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    }
+                  />
+
+                  <ActivityItem
+                    title="System maintenance"
+                    description="Scheduled maintenance completed successfully"
+                    time="2 days ago"
+                    iconBg="bg-orange-100"
+                    icon={
+                      <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }

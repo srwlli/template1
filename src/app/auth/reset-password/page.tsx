@@ -3,6 +3,10 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import { useToastHelpers } from '@/components/ToastProvider'
+import { logError, logUserAction } from '@/lib/errorLogger'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
@@ -85,17 +89,54 @@ function ResetPasswordContent() {
   })
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAuth() // ✅ ADDED: Real auth hook
+  const { success, error: showError } = useToastHelpers() // ✅ ADDED: Toast notifications
 
-  // Check for valid reset session on component mount
+  // ✅ REPLACED: Real session verification
   useEffect(() => {
     const checkResetSession = async () => {
       try {
-        // Simulate API call to check reset session
-        // Replace with actual supabase.auth.getSession() call
-        setTimeout(() => {
-          const hasValidToken = searchParams.get('token') // Demo check
-          
-          if (hasValidToken) {
+        logUserAction('Password reset verification started')
+
+        // Check if user is already authenticated
+        if (user) {
+          router.push('/dashboard')
+          return
+        }
+
+        // Get the session to check if user is in password reset flow
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+          throw error
+        }
+
+        // Check for password reset session or valid recovery session
+        if (session?.user && !session.user.email_confirmed_at) {
+          // User is in recovery session
+          setResetState({
+            status: 'ready',
+            message: 'Enter your new password below.'
+          })
+        } else if (session?.user) {
+          // User is already fully authenticated
+          router.push('/dashboard')
+        } else {
+          // No valid session, check URL parameters for recovery
+          const access_token = searchParams.get('access_token')
+          const refresh_token = searchParams.get('refresh_token')
+
+          if (access_token && refresh_token) {
+            // Set session from URL parameters
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token
+            })
+
+            if (sessionError) {
+              throw sessionError
+            }
+
             setResetState({
               status: 'ready',
               message: 'Enter your new password below.'
@@ -106,17 +147,30 @@ function ResetPasswordContent() {
               message: 'This password reset link is invalid or has expired.'
             })
           }
-        }, 1500)
+        }
+
       } catch (err: any) {
-        setResetState({
-          status: 'invalid',
-          message: 'Unable to verify reset link. Please try requesting a new one.'
+        logError(err, {
+          component: 'ResetPasswordPage',
+          action: 'session_verification'
         })
+
+        if (err.message?.includes('expired')) {
+          setResetState({
+            status: 'expired',
+            message: 'This password reset link has expired. Please request a new one.'
+          })
+        } else {
+          setResetState({
+            status: 'invalid',
+            message: 'Unable to verify reset link. Please try requesting a new one.'
+          })
+        }
       }
     }
 
     checkResetSession()
-  }, [searchParams])
+  }, [searchParams, router, user])
 
   const validateField = (field: string, value: string): string | undefined => {
     switch (field) {
@@ -153,12 +207,14 @@ function ResetPasswordContent() {
     }
   }, [password, confirmPassword, submitAttempted])
 
+  // ✅ REPLACED: Real Supabase password update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
     
     if (!validateForm()) {
-      alert('Please fix the errors below')
+      logUserAction('Password reset validation failed', { errors })
+      showError('Please fix the errors below')
       return
     }
 
@@ -166,40 +222,55 @@ function ResetPasswordContent() {
     setErrors({})
 
     try {
-      // Simulate API call for demo
-      // Replace with actual supabase.auth.updateUser call
-      setTimeout(() => {
-        setResetState({
-          status: 'success',
-          message: 'Password updated successfully! Redirecting to dashboard...'
-        })
+      logUserAction('Password update attempt started')
 
-        alert('Password Updated! Your password has been changed successfully.')
-        
-        // Redirect to dashboard after showing success message
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 3000)
-        
-        setLoading(false)
-      }, 2000)
+      const { data, error } = await supabase.auth.updateUser({
+        password: password
+      })
+
+      if (error) {
+        throw error
+      }
+
+      logUserAction('Password update successful', { userId: data.user?.id })
+
+      setResetState({
+        status: 'success',
+        message: 'Password updated successfully! Redirecting to dashboard...'
+      })
+
+      success('Password Updated!', 'Your password has been changed successfully.')
+      
+      // Redirect to dashboard after showing success message
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 3000)
 
     } catch (err: any) {
-      // Handle specific errors
+      logError(err, {
+        component: 'ResetPasswordPage',
+        action: 'password_update'
+      })
+
+      // ✅ ADDED: Proper error handling
       if (err.message?.includes('session_not_found')) {
         setResetState({
           status: 'expired',
           message: 'Your reset session has expired. Please request a new password reset.'
         })
-        alert('Session Expired. Please request a new password reset.')
+        showError('Session Expired', 'Please request a new password reset.')
       } else if (err.message?.includes('Password should be at least')) {
         setErrors({ password: 'Password must be at least 6 characters long' })
-        alert('Weak password. Please choose a stronger password.')
+        showError('Weak Password', 'Please choose a stronger password.')
+      } else if (err.message?.includes('New password should be different')) {
+        setErrors({ password: 'New password must be different from your current password' })
+        showError('Same Password', 'Please choose a different password.')
       } else {
         const message = err.message || 'Failed to update password. Please try again.'
         setErrors({ general: message })
-        alert(`Update Failed: ${message}`)
+        showError('Update Failed', message)
       }
+    } finally {
       setLoading(false)
     }
   }
@@ -338,7 +409,8 @@ function ResetPasswordContent() {
           </CardHeader>
 
           <CardContent>
-            <div className="space-y-6">
+            {/* ✅ ADDED: Proper form submission */}
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
               <div className="space-y-4">
                 {/* New Password Field */}
                 <div>
@@ -398,7 +470,6 @@ function ResetPasswordContent() {
               <div>
                 <button
                   type="submit"
-                  onClick={handleSubmit}
                   disabled={loading}
                   className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
@@ -422,7 +493,7 @@ function ResetPasswordContent() {
                   Back to Login
                 </Link>
               </div>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>
