@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
-import { useAuth } from '@/components/AuthProvider'
-import { useToastHelpers } from '@/components/ToastProvider'
-import { logError, logUserAction } from '@/lib/errorLogger'
-import { supabase } from '@/lib/supabase'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FormErrors {
   name?: string
@@ -14,12 +10,90 @@ interface FormErrors {
   general?: string
 }
 
+// Loading Spinner Component
+const LoadingSpinner = () => (
+  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+)
+
+// Error Alert Component
+const ErrorAlert = ({ message }) => (
+  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+    <div className="flex items-center">
+      <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      </svg>
+      {message}
+    </div>
+  </div>
+)
+
+// Character Counter Component
+const CharacterCounter = ({ text, max }) => {
+  const current = text.length
+  const isOverLimit = current > max
+  return (
+    <p className={`mt-1 text-xs ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
+      {current}/{max} characters {isOverLimit && '(over limit)'}
+    </p>
+  )
+}
+
+// Account Info Item Component
+const AccountInfoItem = ({ label, value, type = 'text' }) => {
+  const renderValue = () => {
+    switch (type) {
+      case 'date':
+        return value ? new Date(value).toLocaleDateString() : 'Unknown'
+      case 'verification':
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            value 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {value ? 'Verified' : 'Pending Verification'}
+          </span>
+        )
+      case 'id':
+        return value ? (
+          <span className="font-mono">{value.substring(0, 8)}...</span>
+        ) : 'Unknown'
+      default:
+        return value || 'Unknown'
+    }
+  }
+
+  return (
+    <div>
+      <dt className="text-sm font-medium text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm text-gray-900">
+        {renderValue()}
+      </dd>
+    </div>
+  )
+}
+
 export default function ProfilePage() {
-  const { user } = useAuth()
+  // Mock user data for demo - replace with actual user from auth provider
+  const user = {
+    email: 'user@example.com',
+    id: 'abc123def456ghi789',
+    created_at: '2024-01-15T10:30:00Z',
+    last_sign_in_at: '2025-06-17T08:15:00Z',
+    email_confirmed_at: '2024-01-15T11:00:00Z',
+    user_metadata: {
+      name: 'John Doe',
+      bio: 'Software developer passionate about creating amazing user experiences.',
+      location: 'San Francisco, CA'
+    }
+  }
+
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
-  const { success, error: showError } = useToastHelpers()
   
   // Form state
   const [name, setName] = useState('')
@@ -79,8 +153,7 @@ export default function ProfilePage() {
     setSubmitAttempted(true)
     
     if (!validateForm()) {
-      logUserAction('Profile validation failed', { errors })
-      showError('Please fix the errors below')
+      alert('Please fix the errors below')
       return
     }
 
@@ -88,47 +161,26 @@ export default function ProfilePage() {
     setErrors({})
 
     try {
-      logUserAction('Profile update started', { userId: user?.id })
-
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          name: name.trim(),
-          bio: bio.trim(),
-          location: location.trim(),
-        }
-      })
-
-      if (error) {
-        throw error
-      }
-
-      logUserAction('Profile updated successfully', { 
-        userId: user?.id,
-        fieldsUpdated: { name: !!name.trim(), bio: !!bio.trim(), location: !!location.trim() }
-      })
-
-      success('Profile updated!', 'Your changes have been saved successfully.')
+      // Simulate API call for demo
+      // Replace with actual supabase.auth.updateUser call
+      setTimeout(() => {
+        alert('Profile updated! Your changes have been saved successfully.')
+        setLoading(false)
+      }, 2000)
 
     } catch (err: any) {
-      logError(err, {
-        component: 'ProfileForm',
-        action: 'profile_update',
-        additionalData: { userId: user?.id }
-      })
-
       // Handle specific error cases
       if (err.message?.includes('rate limit')) {
         setErrors({ general: 'Too many updates. Please wait a moment before trying again.' })
-        showError('Rate limited', 'Please wait before updating again.')
+        alert('Rate limited. Please wait before updating again.')
       } else if (err.message?.includes('network')) {
         setErrors({ general: 'Network error. Please check your connection and try again.' })
-        showError('Network error', 'Please check your connection.')
+        alert('Network error. Please check your connection.')
       } else {
         const message = err.message || 'An unexpected error occurred. Please try again.'
         setErrors({ general: message })
-        showError('Update failed', message)
+        alert(`Update failed: ${message}`)
       }
-    } finally {
       setLoading(false)
     }
   }
@@ -143,34 +195,24 @@ export default function ProfilePage() {
     return `${baseClass} border-gray-300 focus:ring-blue-500 focus:border-blue-500`
   }
 
-  const getCharacterCount = (text: string, max: number) => {
-    const current = text.length
-    const isOverLimit = current > max
-    return (
-      <p className={`mt-1 text-xs ${isOverLimit ? 'text-red-500' : 'text-gray-500'}`}>
-        {current}/{max} characters {isOverLimit && '(over limit)'}
-      </p>
-    )
-  }
-
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-            <p className="mt-2 text-gray-600">Manage your personal information and preferences.</p>
-          </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+          <p className="mt-2 text-gray-600">Manage your personal information and preferences.</p>
+        </div>
 
-          {/* Profile Form */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Personal Information</h2>
-              <p className="mt-1 text-sm text-gray-500">Update your profile details below.</p>
-            </div>
+        {/* Profile Form */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>Update your profile details below.</CardDescription>
+          </CardHeader>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6" noValidate>
+          <CardContent>
+            <div className="space-y-6">
               {/* Email Field (Disabled) */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -236,7 +278,7 @@ export default function ProfilePage() {
                     <p className="mt-1 text-xs text-gray-500">
                       Brief description for your profile.
                     </p>
-                    {getCharacterCount(bio, 500)}
+                    <CharacterCounter text={bio} max={500} />
                   </div>
                 )}
               </div>
@@ -266,83 +308,64 @@ export default function ProfilePage() {
 
               {/* General Error Message */}
               {errors.general && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    {errors.general}
-                  </div>
-                </div>
+                <ErrorAlert message={errors.general} />
               )}
 
               {/* Submit Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-4 border-t">
                 <button
                   type="submit"
+                  onClick={handleSubmit}
                   disabled={loading}
-                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  className="flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {loading ? (
-                    <div className="flex items-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                    <>
+                      <LoadingSpinner />
                       Updating...
-                    </div>
+                    </>
                   ) : (
                     'Update Profile'
                   )}
                 </button>
               </div>
-            </form>
-          </div>
-
-          {/* Account Information */}
-          <div className="mt-8 bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Account Information</h2>
-              <p className="mt-1 text-sm text-gray-500">View your account details and membership information.</p>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="p-6">
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Account Created</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Last Sign In</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Unknown'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">Email Verified</dt>
-                  <dd className="mt-1 text-sm text-gray-900">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user?.email_confirmed_at 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {user?.email_confirmed_at ? 'Verified' : 'Pending Verification'}
-                    </span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">User ID</dt>
-                  <dd className="mt-1 text-sm text-gray-900 font-mono">
-                    {user?.id ? `${user.id.substring(0, 8)}...` : 'Unknown'}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        </div>
+        {/* Account Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>View your account details and membership information.</CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+              <AccountInfoItem
+                label="Account Created"
+                value={user?.created_at}
+                type="date"
+              />
+              <AccountInfoItem
+                label="Last Sign In"
+                value={user?.last_sign_in_at}
+                type="date"
+              />
+              <AccountInfoItem
+                label="Email Verified"
+                value={user?.email_confirmed_at}
+                type="verification"
+              />
+              <AccountInfoItem
+                label="User ID"
+                value={user?.id}
+                type="id"
+              />
+            </dl>
+          </CardContent>
+        </Card>
       </div>
-    </ProtectedRoute>
+    </div>
   )
 }
